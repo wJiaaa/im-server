@@ -1,0 +1,206 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["extendedWhereUnique"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  userId    String    @id @default(uuid()) @map("user_id")
+  tel       String    @unique @db.VarChar(11)
+  username  String    @db.VarChar(50)
+  password  String    @db.VarChar(128)
+  avatar    String    @default("https://comm.tencentcs.com/im_avatar_rob3.jpg") @db.VarChar(255)
+  signature String?   @db.VarChar(50) // 个性签名
+  gender    Int       @default(0) @db.TinyInt() // 0保密 1男 2女
+  email     String?   @db.VarChar(50)
+  isRobot   Boolean   @default(false) @map("is_robot") // 是否机器人[0:否;1:是;]
+  birthday  DateTime? // 生日
+
+  createdAt DateTime @default(now()) @map("created_at") // 注册时间
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") // 更新时间
+
+  @@map("im_user")
+}
+
+model Contact {
+  // 联系人
+  id       Int     @id @default(autoincrement())
+  userId   String  @map("user_id")
+  // sessionId Int     @map("session_id") // 该联系人的会话Id
+  friendId String  @map("friend_id") // 联系人Id
+  remark   String? @db.VarChar(255) // 联系人备注
+  isDelete Boolean @default(false) @map("is_delete") // 好有是否删除
+
+  createdAt DateTime  @default(now()) @map("created_at") // 添加时间
+  updatedAt DateTime? @default(now()) @map("updated_at") // 更新好友信息的时间
+  deletedAt DateTime? @map("deleted_at") // 删除时间
+
+  @@unique([userId, friendId])
+  @@map("im_contact")
+}
+
+model ContactMessage {
+  // 联系人消息
+  msgId       String  @id @map("msg_id") // 消息id
+  senderId    String  @map("sender_id") @db.VarChar(50) // 发送人 0系统
+  receiverId  String  @map("receiver_id") @db.VarChar(50) // 接收人
+  sessionId   Int?    @map("session_id") //所属会话ID
+  content     String  @db.Text // 消息内容
+  messageType Int     @default(1) @map("message_type") // 消息类型 1.文本 2.图片 3.文件 4.视频 101:置顶/取消置顶消息  99.系统消息 100 撤回消息  5 表情消息
+  read        Boolean @default(false) // 消息是否已读
+  isRevoke    Boolean @default(false) @map("is_revoke") // 消息是否撤回
+  isDelete    Int     @default(1) @map("is_delete") @db.TinyInt() // 消息是否删除 1:未删除 2: sender_id删除 3:receiver_id删除 4:都删除
+  status      Int     @default(2) //消息状态 2 发送成功 3发送失败
+  extra       String? @map("extra") @db.Text // 消息扩展字段 
+
+  createdAt DateTime  @default(now()) @map("created_at") // 消息创建时间
+  updatedAt DateTime? @default(now()) @updatedAt @map("updated_at") // 消息更新时间
+  deletedAt DateTime? @map("deleted_at") // 消息删除时间
+
+  @@index([senderId, receiverId])
+  @@index([sessionId])
+  @@map("im_contact_message")
+}
+
+model Group {
+  // 群
+  groupId   Int    @id @default(autoincrement()) @map("group_id")
+  groupName String @map("group_name") @db.VarChar(50) // 群名称  
+  avatar    String @default("") @db.VarChar(255) // 群头像
+  creatorId String @map("creator_id") @db.VarChar(50) // 群主的用户Id 
+  isMute    Int    @default(0) @map("is_mute") @db.TinyInt() // 群是否禁言
+  isDismiss Int    @default(0) @map("is_dismiss") @db.TinyInt() // 群是否解散
+
+  createdAt DateTime @default(now()) @map("created_at") // 群创建时间
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") //群更新时间
+
+  messages          GroupMessage[] // 群消息
+  groupAnnouncement GroupAnnouncement[] @relation("AnnouncementBelongGroup") // 群聊公告 一个群可以有多个群聊公告
+
+  @@map("im_group")
+}
+
+model GroupAnnouncement {
+  // 群公告
+  id            Int         @id @default(autoincrement())
+  content       String      @db.Text // 公告内容
+  createUser    GroupMember @relation("createUser", fields: [createUserId], references: [id])
+  createUserId  Int         @map("create_user_id") // 所属群成员 
+  belongGroup   Group       @relation("AnnouncementBelongGroup", fields: [belongGroupId], references: [groupId])
+  belongGroupId Int         @map("belong_group_id") // 所属群Id 
+  attachmentUrl String?     @map("attachment_url") @db.VarChar(255) // 附件路径url 
+  isTop         Boolean     @default(false) @map("is_top") // 是否置顶
+
+  createdAt DateTime  @default(now()) @map("created_at") // 公告创建时间
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") // 更新时间
+  deletedAt DateTime? @map("deleted_at") // 删除时间
+
+  @@map("im_group_announcement")
+}
+
+model GroupMember {
+  // 群成员
+  id       Int       @id @default(autoincrement())
+  userId   String    @map("user_id") // 群成员用户ID
+  groupId  Int       @map("group_id") // 群ID
+  isQuit   Boolean   @default(false) @map("is_quit") // 是否退出群聊
+  nickName String?   @map("nick_name") @db.VarChar(50) // 群成员在该群聊的昵称
+  isMute   Int       @default(0) @map("is_mute") @db.TinyInt() // 是否被禁言
+  type     Int       @default(0) @db.TinyInt() // 成员类型[0:普通成员;1:管理员;2:群主;],
+  remark   String    @default("") @map("remark") @db.VarChar(50) // 成员对该群的备注
+  joinTime DateTime  @default(now()) @map("join_time") // 入群时间
+  quitTime DateTime? @map("quit_time") //记录用户退出群聊的时间  用来作为不显示该时间前消息的判断条件
+
+  groupAnnouncement GroupAnnouncement[] @relation("createUser") // 一个群用户可以创建多个群聊公告
+
+  @@unique([userId, groupId])
+  @@map("im_group_member")
+}
+
+model GroupMessage {
+  // 群消息
+  // TODO 删除消息另外存一个表
+  msgId         String  @id @map("msg_id") // 群消息id
+  content       String  @db.Text // 消息内容 
+  senderId      String? @map("sender_id") // 群消息由哪个用户发出 为0时系统消息
+  messageType   Int     @default(1) @map("message_type") //消息类型 1.文本 2.图片 3.文件 4.视频 5.语音 6.名片 7.小程序 8.链接 9.地址 99.系统消息(子type分不同的系统消息)
+  group         Group?  @relation(fields: [belongGroupId], references: [groupId]) // 消息所属群组
+  belongGroupId Int?    @map("belong_group_id") // 消息所属群组ID
+  extra         String? @map("extra") @db.Text // 消息扩展字段
+  isRevoke      Boolean @default(false) @map("is_revoke") // 消息是否撤回
+
+  createdAt DateTime  @default(now()) @map("created_at") // 消息创建时间
+  updatedAt DateTime? @default(now()) @updatedAt @map("updated_at") // 消息更新时间
+
+  @@map("im_group_message")
+}
+
+model ContactApply {
+  // 好友申请表
+  id          Int     @id @default(autoincrement())
+  status      Int     @default(0) // 申请状态 0未处理(等待验证) 1已同意 2已拒绝
+  applicantId String  @map("applicant_id") // 申请人ID
+  friendId    String  @map("friend_id") // 好友ID
+  remark      String? @db.VarChar(255) // 申请备注
+
+  createdAt DateTime @default(now()) @map("created_at") // 申请时间
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") // 更新时间
+
+  @@index([applicantId, friendId])
+  @@map("im_contact_apply")
+}
+
+model LoginNotify {
+  // 登录通知表
+  id           Int    @id @default(autoincrement()) // 登录通知消息id
+  userId       String @map("user_id") // 用户ID
+  loginIp      String @map("login_ip") // 登录IP
+  loginAgent   String @map("login_agent") // 登录设备 
+  loginAddress String @map("login_address") // 登录地址
+
+  createdAt DateTime @default(now()) @map("created_at") // 登录时间
+
+  @@map("im_login_notify")
+}
+
+model Emote {
+  // 表情表
+  id     Int    @id @default(autoincrement())
+  userId String @map("user_id") // 所属用户Id
+  src    String @default("") @db.VarChar(255) // 表情路径
+  width  Int    @default(120)
+  height Int    @default(120)
+
+  createdAt DateTime @default(now()) @map("created_at") // 表情创建时间
+
+  @@map("im_emote")
+}
+
+model Session {
+  // 会话
+  sessionId    Int     @id @default(autoincrement()) @map("session_id")
+  sessionType  Int     @default(1) @map("session_type") @db.TinyInt() // 聊天类型 1私聊 2群聊
+  senderId     String  @map("sender_id") @db.VarChar(50) // 发送人 0系统
+  receiverId   String  @map("receiver_id") @db.VarChar(50) // 接收人
+  isTop        Boolean @default(false) @map("is_top") // 会话是否置顶
+  isDisturb    Boolean @default(false) @map("is_disturb") // 会话是否免打扰 
+  isDelete     Boolean @default(false) @map("is_delete") // 会话是否删除 
+  isRobot      Boolean @default(false) @map("is_robot") // 会话是否是机器人会话
+  lastMsgId    String? @map("last_msg_id") // 最后一条消息ID
+  topMsgId     String? @map("top_msg_id") // 当前会话置顶消息ID
+  topMsgUserId String? @map("top_msg_user_id") // 置顶消息的置顶人
+
+  createdAt DateTime  @default(now()) @map("created_at") // 会话创建时间
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") // 更新时间
+  deletedAt DateTime? @map("deleted_at") // 删除时间
+
+  @@unique([senderId, receiverId, sessionType])
+  @@index([senderId, receiverId, sessionType])
+  @@map("im_session")
+}
+
+// npx prisma migrate dev --name add init

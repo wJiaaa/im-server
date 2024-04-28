@@ -1,0 +1,99 @@
+version: '3'
+
+services:
+  # etcd:
+  #   image: "bitnami/etcd:latest"
+  #   container_name: "etcd"
+  #   environment:
+  #     ETCD_ROOT_PASSWORD: "root"
+  #     ETCDCTL_USER: "root"
+  #     ETCDCTL_PASSWORD: "123456"
+  #   ports:
+  #     - 2379:2379
+  #   networks:
+  #     - im_network
+
+  # etcd-manage:
+  #   image: "evildecay/etcdkeeper"
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     h: ""
+  #   depends_on:
+  #     - etcd
+  #   networks:
+  #     - im_network
+
+  mysql:
+    image: mysql:latest
+    container_name: mysql
+    restart: always
+    ports:
+      - '3306:3306'
+    command: ['--character-set-server=utf8mb4', '--collation-server=utf8mb4_general_ci']
+    environment:
+      - MYSQL_ROOT_PASSWORD=123456
+      - TZ=Asia/Shanghai
+      - MYSQL_DATABASE=iM
+    # volumes:
+    #   - "/etc/localtime:/etc/localtime:ro"
+    #   - "/etc/timezone:/etc/timezone:ro"
+    #   - "./data/mysql/db:/var/lib/mysql"
+    networks:
+      - im_network
+
+  redis:
+    image: redis:6.2.6
+    restart: always
+    container_name: redis
+    ports:
+      - 6379:6379
+    environment:
+      TZ: Asia/Shanghai
+    # volumes:
+    #   - ./data/redis/data:/data:rw
+    #   - ./data/redis/redis.conf:/etc/redis.conf
+    #   - ./data/redis/logs:/logs:rw
+    command: redis-server /etc/redis.conf --appendonly yes
+    networks:
+      - im_network
+
+  minio:
+    hostname: 'minio'
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    restart: always
+    image: 'bitnami/minio:latest'
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    networks:
+      - im_network
+
+  # rabbitmq:
+  #   image: rabbitmq:management
+  #   container_name: rabbitmq_3_12
+  #   restart: always
+  #   # 节点名 rabbit@rabbitserver，不然会去容器ID
+  #   hostname: rabbitserver
+  #   environment:
+  #     # # 默认虚拟机名
+  #     # RABBITMQ_DEFAULT_VHOST: admin_vhost
+  #     # 用户名
+  #     RABBITMQ_DEFAULT_USER: root
+  #     # 密码
+  #     RABBITMQ_DEFAULT_PASS: 123456
+  #     # 指定自定义插件目录
+  #     #  RABBITMQ_PLUGINS_DIR: '/plugins:/myplugins'
+  #   ports:
+  #     - '5672:5672'
+  #     - '15672:15672'
+  #   #  volumes:
+  #   #    - ./data:/var/lib/rabbitmq
+  #   #    - ./myplugins:/myplugins
+  #   networks:
+  #     - im_network
+
+networks:
+  im_network:
