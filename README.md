@@ -17,7 +17,9 @@
 git clone https://github.com/wJiaaa/im-server.git
 ## 安装依赖
 pnpm install
-# 启动本地开发环境
+## 生成数据库（prisma）
+npx prisma migrate dev --name add init
+## 启动本地开发环境
 pnpm dev
 ```
 ###### 修改 .env 配置信息
